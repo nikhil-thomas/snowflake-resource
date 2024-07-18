@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources/status
+  verbs:
+  - get
+  - patch
+  - update

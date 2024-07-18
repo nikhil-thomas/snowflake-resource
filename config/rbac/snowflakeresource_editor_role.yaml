@@ -1,0 +1,27 @@
+# permissions for end users to edit snowflakeresources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: snowflake-resource
+    app.kubernetes.io/managed-by: kustomize
+  name: snowflakeresource-editor-role
+rules:
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources/status
+  verbs:
+  - get

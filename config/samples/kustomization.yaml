@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- snowflake_v1alpha1_snowflakeresource.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

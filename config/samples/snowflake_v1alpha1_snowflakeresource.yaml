@@ -1,0 +1,14 @@
+apiVersion: snowflake.my.domain/v1alpha1
+kind: SnowflakeResource
+metadata:
+  labels:
+    app.kubernetes.io/name: snowflake-resource
+    app.kubernetes.io/managed-by: kustomize
+  name: snowflakeresource-sample
+spec:
+  objectType: database
+  objectConfig:
+  - key: foo
+    value: bar
+  - key: fizz
+    value: buzz

@@ -1,0 +1,23 @@
+# permissions for end users to view snowflakeresources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: snowflake-resource
+    app.kubernetes.io/managed-by: kustomize
+  name: snowflakeresource-viewer-role
+rules:
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - snowflake.my.domain
+  resources:
+  - snowflakeresources/status
+  verbs:
+  - get

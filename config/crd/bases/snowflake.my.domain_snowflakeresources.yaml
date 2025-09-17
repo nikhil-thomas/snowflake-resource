@@ -65,6 +65,17 @@ spec:
             type: object
           status:
             description: SnowflakeResourceStatus defines the observed state of SnowflakeResource
+            properties:
+              name:
+                type: string
+              ready:
+                type: boolean
+              type:
+                type: string
+            required:
+            - name
+            - ready
+            - type
             type: object
         type: object
     served: true

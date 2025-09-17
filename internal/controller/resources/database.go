@@ -1,44 +1,56 @@
 package resources
 
-import "github.com/nikhil-thomas/snowflake-resource/api/v1alpha1"
+import (
+	"github.com/nikhil-thomas/snowflake-resource/api/v1alpha1"
+	"github.com/nikhil-thomas/snowflake-resource/pkg/clients/snowflake"
+)
 
 // Database represents a database
 // Implements the Resource interface
-type Database struct {
-	Name    string
-	Comment string
+type DatabaseReconciler struct {
+	C *snowflake.Client
 }
 
-// NewDatabase creates a new database from v1alpha1.SnowflakeResource
-func NewDatabase(cr *v1alpha1.SnowflakeResource) *Database {
-	db := &Database{
-		Name: cr.Name,
+// NewDatabaseReconciler creates a new database from v1alpha1.SnowflakeResource
+func NewDatabaseReconciler(client *snowflake.Client) *DatabaseReconciler {
+	return &DatabaseReconciler{
+		C: client,
 	}
-	for _, param := range cr.Spec.ObjectConfig {
-		switch param.Key {
-		case "comment":
-			db.Comment = param.Value
-		}
-	}
-	return &Database{}
 }
 
 // Create creates a database
-func (d *Database) Create() error {
-	return nil
+func (d *DatabaseReconciler) Create(resource *v1alpha1.SnowflakeResource) error {
+	query := "CREATE DATABASE" + resource.Name
+	return d.C.Execute(query, true)
 }
 
 // Delete deletes a database
-func (d *Database) Delete() error {
-	return nil
+func (d *DatabaseReconciler) Delete(resource *v1alpha1.SnowflakeResource) error {
+	query := "DROP DATABASE" + resource.Name
+	return d.C.Execute(query, true)
 }
 
 // Update updates a database
-func (d *Database) Update() error {
+func (d *DatabaseReconciler) Update(resource *v1alpha1.SnowflakeResource) error {
 	return nil
 }
 
 // List lists databases
-func (d *Database) List() error {
+func (d *DatabaseReconciler) List() (*v1alpha1.SnowflakeResourceList, error) {
+	return nil, nil
+}
+
+// Get gets a database
+func (d *DatabaseReconciler) Get() (*v1alpha1.SnowflakeResource, error) {
+	return nil, nil
+}
+
+// Reconcile reconciles a database
+func (d *DatabaseReconciler) Reconcile(resource *v1alpha1.SnowflakeResource) error {
 	return nil
+}
+
+// Status returns the status of a database
+func (d *DatabaseReconciler) Status() v1alpha1.SnowflakeResourceStatus {
+	return v1alpha1.SnowflakeResourceStatus{}
 }

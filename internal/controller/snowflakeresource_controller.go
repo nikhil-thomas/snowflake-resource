@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/nikhil-thomas/snowflake-resource/pkg/clients/snowflake"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,18 +62,120 @@ func (r *SnowflakeResourceReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	query := "show users"
-	rows, err := r.SnowflakeClient.Query(query, true)
-	printRows(rows)
-	if err != nil {
-		log.Log.Error(err, "unable to query Snowflake")
-		return ctrl.Result{}, err
-
+	objectReconciler := TypeSpecificReconciler(res, r.SnowflakeClient)
+	if objectReconciler == nil {
+		log.Log.Error(fmt.Errorf("unable to find reconciler for resource"), "unable to find reconciler for resource")
+		return ctrl.Result{}, errors.New("unable to find reconciler for resource")
 	}
 
-	log.Log.Info("reconciling SnowflakeResource", "name", res.Name)
+	result, err := r.handleFinalizer(ctx, res, objectReconciler)
+	if err != nil {
+		log.Log.Error(err, "unable to handle finalizer")
+		return ctrl.Result{}, err
+	}
+	if result.Requeue {
+		// requeue
+		return result, nil
+	}
+
+	// handle reconciliation logic
+
+	// check if resource exists
+	result, err = r.createObjectIfNotExists(err, objectReconciler, res)
+	if err != nil {
+		log.Log.Error(err, "unable to create object")
+		return ctrl.Result{}, err
+	}
+
+	if result.Requeue {
+		// requeue
+		return result, nil
+	}
+
+	res.Status = objectReconciler.Status()
+
+	// update status
+	err = r.Status().Update(ctx, res)
+	if err != nil {
+		log.Log.Error(err, "unable to update status")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *SnowflakeResourceReconciler) createObjectIfNotExists(err error, objectReconciler ResourceReconciler, res *snowflakev1alpha1.SnowflakeResource) (ctrl.Result, error) {
+	_, err = objectReconciler.Get()
+	if err == nil {
+		return ctrl.Result{}, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		log.Log.Error(err, "unable to get resource")
+		return ctrl.Result{}, err
+	}
+	// resource not found
+	err = objectReconciler.Create(res)
+	if err != nil {
+		log.Log.Error(err, "unable to create resource")
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{
+		Requeue: true,
+	}, nil
+}
+
+func (r *SnowflakeResourceReconciler) handleFinalizer(ctx context.Context, res *snowflakev1alpha1.SnowflakeResource, objectReconciler ResourceReconciler) (ctrl.Result, error) {
+	// if deletion timestamp not set on res handle finalizer logic
+	// implies not a deletion request
+	if res.ObjectMeta.DeletionTimestamp.IsZero() {
+		return r.addFinalizerIfNotExists(ctx, res)
+	}
+
+	return r.handleDeletion(ctx, res, objectReconciler)
+}
+
+func (r *SnowflakeResourceReconciler) handleDeletion(ctx context.Context, res *snowflakev1alpha1.SnowflakeResource, objectReconciler ResourceReconciler) (ctrl.Result, error) {
+	if !containsString(res.ObjectMeta.Finalizers, "finalizer.snowflake.my.domain") {
+		// if finalizer not present on res return
+		// implies deletion request but finalizer already removed
+		return ctrl.Result{}, nil
+	}
+
+	// handle deletion logic
+	err := objectReconciler.Delete(res)
+	if err != nil {
+		log.Log.Error(err, "unable to delete resource")
+		return ctrl.Result{}, err
+	}
+
+	// remove finalizer
+	res.ObjectMeta.Finalizers = removeString(res.ObjectMeta.Finalizers, "finalizer.snowflake.my.domain")
+	err = r.Update(ctx, res)
+	if err != nil {
+		log.Log.Error(err, "unable to update resource")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *SnowflakeResourceReconciler) addFinalizerIfNotExists(ctx context.Context, res *snowflakev1alpha1.SnowflakeResource) (ctrl.Result, error) {
+	if containsString(res.ObjectMeta.Finalizers, "finalizer.snowflake.my.domain") {
+		return ctrl.Result{
+			// no requeue as the finalizer already exists
+			Requeue: false,
+		}, nil
+	}
+	res.ObjectMeta.Finalizers = append(res.ObjectMeta.Finalizers, "finalizer.snowflake.my.domain")
+	err := r.Update(ctx, res)
+	if err != nil {
+		log.Log.Error(err, "unable to update resource")
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{
+		// requeue as the finalizer was added and the object was updated
+		Requeue: true,
+	}, nil
 }
 
 func printRows(rows *sql.Rows) {
